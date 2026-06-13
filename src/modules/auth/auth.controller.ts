@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/async-handler";
-import { registerSchema, loginSchema } from "./auth.schemas";
-import { getCurrentUser, loginUser, registerUser } from "./auth.service";
+import { loginSchema, registerSchema, updateUserSchema } from "./auth.schemas";
+import { deleteCurrentUser, getCurrentUser, loginUser, registerUser, updateCurrentUser } from "./auth.service";
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const payload = registerSchema.parse(req.body);
@@ -18,4 +18,15 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const user = await getCurrentUser(req.user!.id);
   res.json({ user });
+});
+
+export const updateMe = asyncHandler(async (req: Request, res: Response) => {
+  const payload = updateUserSchema.parse(req.body);
+  const result = await updateCurrentUser(req.user!.id, payload);
+  res.json(result);
+});
+
+export const deleteMe = asyncHandler(async (req: Request, res: Response) => {
+  const result = await deleteCurrentUser(req.user!.id);
+  res.json(result);
 });

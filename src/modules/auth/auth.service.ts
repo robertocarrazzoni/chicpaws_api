@@ -87,3 +87,82 @@ export async function getCurrentUser(userId: string) {
 
   return user;
 }
+
+export async function updateCurrentUser(
+  userId: string,
+  input: { name?: string; email?: string; password?: string }
+) {
+  const prisma = getPrisma();
+  const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (!currentUser) {
+    throw new HttpError(404, "Usuário não encontrado.");
+  }
+
+  if (input.email) {
+    const existing = await prisma.user.findUnique({ where: { email: input.email } });
+
+    if (existing && existing.id !== userId) {
+      throw new HttpError(409, "E-mail já cadastrado.");
+    }
+  }
+
+  const data: { name?: string; email?: string; password?: string } = {};
+
+  if (input.name) {
+    data.name = input.name;
+  }
+
+  if (input.email) {
+    data.email = input.email;
+  }
+
+  if (input.password) {
+    data.password = await hashPassword(input.password);
+  }
+
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true
+    }
+  });
+
+  return {
+    user,
+    token: buildToken(user)
+  };
+}
+
+export async function deleteCurrentUser(userId: string) {
+  const prisma = getPrisma();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      _count: {
+        select: {
+          orders: true
+        }
+      }
+    }
+  });
+
+  if (!user) {
+    throw new HttpError(404, "Usuário não encontrado.");
+  }
+
+  if (user._count.orders > 0) {
+    throw new HttpError(409, "Não é possível excluir um usuário com pedidos vinculados.");
+  }
+
+  await prisma.user.delete({
+    where: { id: userId }
+  });
+
+  return { message: "Usuário removido com sucesso." };
+}
